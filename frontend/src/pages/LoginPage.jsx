@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { signInWithEmailAndPassword } from 'firebase/auth'
 import { getToken } from 'firebase/messaging'
 
@@ -68,6 +69,7 @@ const styles = {
 }
 
 export default function LoginPage() {
+  const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
@@ -88,7 +90,7 @@ export default function LoginPage() {
 
       try {
         const permission = await Notification.requestPermission()
-        if (permission === 'granted') {
+        if (permission === 'granted' && messaging) {
           const fcmToken = await getToken(messaging, {
             vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
           })
@@ -137,6 +139,17 @@ export default function LoginPage() {
             }}
           >
             {loading ? 'Signing in...' : 'Sign In'}
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/guest')}
+            style={{
+              ...styles.button,
+              background: '#334155',
+              marginTop: '4px',
+            }}
+          >
+            Use as Guest
           </button>
           {error && <p style={styles.error}>{error}</p>}
         </form>

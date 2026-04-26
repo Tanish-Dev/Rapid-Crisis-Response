@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 const TYPE_LABELS = {
   medical: "Medical",
   fire: "Fire",
@@ -5,22 +7,10 @@ const TYPE_LABELS = {
   distress: "Distress",
 };
 
-const STATUS_LABELS = {
-  active: "Active",
-  responding: "Responding",
-  resolved: "Resolved",
-};
-
 function formatTimestamp(timestamp) {
-  if (!timestamp) {
-    return "Unknown time";
-  }
-
+  if (!timestamp) return "Unknown time";
   const parsed = new Date(timestamp);
-  if (Number.isNaN(parsed.getTime())) {
-    return "Unknown time";
-  }
-
+  if (Number.isNaN(parsed.getTime())) return "Unknown time";
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
@@ -31,81 +21,73 @@ function formatTimestamp(timestamp) {
 
 function getBriefPayload(brief) {
   if (!brief) {
-    return {
-      summary: "Generating Gemini brief...",
-      actions: [],
-    };
+    return { summary: "Generating Gemini brief...", actions: [] };
   }
-
   if (typeof brief === "string") {
-    return {
-      summary: brief,
-      actions: [],
-    };
+    return { summary: brief, actions: [] };
   }
-
   const actions = Array.isArray(brief.recommended_actions)
     ? brief.recommended_actions.filter(Boolean).slice(0, 3)
     : [];
-
-  return {
-    summary: brief.summary || "No summary available.",
-    actions,
-  };
+  return { summary: brief.summary || "No summary available.", actions };
 }
 
 function AlertCard({ alert, onAcknowledge, isAcknowledgePending }) {
   const brief = getBriefPayload(alert.gemini_brief);
 
   return (
-    <article className={`alert-card tone-${alert.type}`}>
-      <header className="alert-card-header">
-        <div>
-          <p className="alert-type">{TYPE_LABELS[alert.type] || "Incident"}</p>
-          <h3>Room {alert.room}</h3>
-        </div>
-        <span className={`status-pill status-${alert.status}`}>
-          {STATUS_LABELS[alert.status] || "Active"}
+    <article className="alert-card">
+      <div className="card-top-row">
+        <span className={`category-label type-${alert.type}`}>
+          {TYPE_LABELS[alert.type] || "Incident"}
         </span>
-      </header>
+        <span className={`status-pill status-${alert.status}`}>
+          {alert.status}
+        </span>
+      </div>
 
-      <p className="alert-meta">Device: {alert.device_name}</p>
-      <p className="alert-meta">
-        Triggered: {formatTimestamp(alert.timestamp)}
-      </p>
+      <div className="card-title-group">
+        <h3>Room {alert.room}</h3>
+        <p className="card-subtitle">
+          Device: {alert.device_name}
+        </p>
+        <p className="card-subtitle">
+          Triggered At: {formatTimestamp(alert.timestamp)}
+        </p>
+      </div>
 
-      <section className="brief-panel">
-        <h4>Situation Brief</h4>
-        <p>{brief.summary}</p>
-        {brief.actions.length > 0 && (
-          <ul>
-            {brief.actions.map((action) => (
-              <li key={action}>{action}</li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <div className="ai-summary-box">
+        <span className="sparkle-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M11.5 0L13 8.5L21.5 10L13 11.5L11.5 20L10 11.5L1.5 10L10 8.5L11.5 0Z"/></svg>
+        </span>
+        <div className="summary-text">
+          <p><strong>Situation Brief:</strong> {brief.summary}</p>
+          {brief.actions && brief.actions.length > 0 && (
+            <ul style={{marginTop: '8px', paddingLeft: '20px', fontSize: '0.85rem'}}>
+              {brief.actions.map((action, i) => (
+                <li key={i}>{action}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
 
-      <footer className="alert-footer">
-        {alert.status === "active" && (
-          <button
-            type="button"
-            className="primary-btn"
-            onClick={() => onAcknowledge(alert.id)}
-            disabled={isAcknowledgePending}
-          >
-            {isAcknowledgePending ? "Acknowledging..." : "Acknowledge"}
-          </button>
-        )}
-
-        {alert.status !== "active" && (
-          <p className="ack-meta">
-            {alert.acknowledged_by
-              ? `Acknowledged by ${alert.acknowledged_by}`
-              : "Acknowledged"}
-          </p>
-        )}
-      </footer>
+      <div className="card-actions">
+        <button
+          className="btn-responding"
+          onClick={() => onAcknowledge(alert.id, "responding")}
+          disabled={isAcknowledgePending || alert.status === "responding" || alert.status === "resolved"}
+        >
+          RESPONDING
+        </button>
+        <button
+          className="btn-resolved"
+          onClick={() => onAcknowledge(alert.id, "resolved")}
+          disabled={isAcknowledgePending || alert.status === "resolved"}
+        >
+          RESOLVED
+        </button>
+      </div>
     </article>
   );
 }

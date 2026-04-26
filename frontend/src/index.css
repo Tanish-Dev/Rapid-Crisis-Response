@@ -1,21 +1,16 @@
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Sora:wght@500;700&family=Space+Grotesk:wght@400;500;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700;800;900&display=swap");
 
 :root {
-  --bg-deep: #040b12;
-  --bg-mid: #0d1e2d;
-  --text: #f5fbff;
-  --text-muted: #9ab8cc;
-  --stroke: rgba(255, 255, 255, 0.14);
-  --accent: #ff7c4a;
+  --bg-main: #DFE5EB;
+  --bg-white: #ffffff;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --red-main: #dc2626;
 
-  --font-heading: "Sora", sans-serif;
-  --font-body: "Space Grotesk", sans-serif;
-  --font-mono: "IBM Plex Mono", monospace;
-
-  font-family: var(--font-body);
+  font-family: "Space Grotesk", "Inter", sans-serif;
   line-height: 1.45;
   font-weight: 400;
-  color: var(--text);
+  color: var(--text-main);
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -33,13 +28,5 @@ body,
 
 body {
   margin: 0;
-  background:
-    radial-gradient(
-      circle at 12% 8%,
-      rgba(255, 109, 61, 0.24),
-      transparent 34%
-    ),
-    radial-gradient(circle at 84% 0%, rgba(61, 185, 255, 0.2), transparent 26%),
-    linear-gradient(156deg, var(--bg-deep), var(--bg-mid) 56%, #13263a);
-  background-attachment: fixed;
+  background-color: var(--bg-main);
 }
