@@ -27,6 +27,7 @@ export function AuthProvider({ children }) {
 
     const registerToken = async () => {
       try {
+        if (!messaging) return;
         const fcmToken = await getToken(messaging, { vapidKey: VAPID_KEY });
         const rolePayload = role || "general";
         await api.post("/api/register-device", {

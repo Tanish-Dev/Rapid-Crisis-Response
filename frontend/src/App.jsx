@@ -8,10 +8,26 @@ import { socket } from "./lib/socket";
 import LoginPage from "./pages/LoginPage";
 import "./App.css";
 
+const Icons = {
+  Dashboard: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>,
+  IncidentLog: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>,
+  RiskInsights: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>,
+  Settings: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>,
+  Asterisk: () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="4" x2="12" y2="20"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="6.34" y1="6.34" x2="17.66" y2="17.66"></line><line x1="6.34" y1="17.66" x2="17.66" y2="6.34"></line></svg>,
+  Bell: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>,
+  User: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>,
+  Shield: () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>,
+  ChevronLeft: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>,
+  ChevronRight: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>,
+  Refresh: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>,
+  Logout: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+};
+
 const TABS = [
-  { key: "active", label: "Active Alerts" },
-  { key: "log", label: "Incident Log" },
-  { key: "insights", label: "Risk Insights" },
+  { key: "active", label: "Dashboard", icon: Icons.Dashboard },
+  { key: "log", label: "Incident Log", icon: Icons.IncidentLog },
+  { key: "insights", label: "Risk Insights", icon: Icons.RiskInsights },
+  { key: "settings", label: "Settings", icon: Icons.Settings },
 ];
 
 const ROLE_ALERT_TYPES = {
@@ -111,6 +127,8 @@ function App() {
   const [insightsLoading, setInsightsLoading] = useState(false);
   const [insightsError, setInsightsError] = useState("");
 
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
   const loadAlerts = useCallback(async () => {
     setLoadingAlerts(true);
     setAlertsError("");
@@ -122,7 +140,7 @@ function App() {
     } catch (error) {
       setAlertsError(
         error?.response?.data?.detail ||
-          "Unable to load alerts. Confirm API server and Firestore are configured.",
+        "Unable to load alerts. Confirm API server and Firestore are configured.",
       );
     } finally {
       setLoadingAlerts(false);
@@ -205,7 +223,7 @@ function App() {
     } catch (error) {
       setInsightsError(
         error?.response?.data?.detail ||
-          "Unable to generate risk insights. Confirm Gemini API key and backend connectivity.",
+        "Unable to generate risk insights. Confirm Gemini API key and backend connectivity.",
       );
     } finally {
       setInsightsLoading(false);
@@ -248,118 +266,167 @@ function App() {
     return <LoginPage />;
   }
 
-  return (
-    <div className="app-shell">
-      <header className="hero-header">
-        <div>
-          <p className="eyebrow">Rapid Crisis Response</p>
-          <h1>Emergency Coordination Dashboard</h1>
-          <p className="hero-subtext">
-            Live panic-button incidents with Gemini-generated briefs and
-            coordinated response updates.
-          </p>
-          <p className="hero-subtext">Signed in role: {normalizeRole(role)}</p>
-        </div>
+  const userName = user?.email ? user.email.split('@')[0] : "Commander";
 
-        <aside className="staff-tools">
-          <label htmlFor="staff-name">Acknowledge as</label>
-          <input
-            id="staff-name"
-            type="text"
-            value={staffName}
-            maxLength={120}
-            onChange={(event) => setStaffName(event.target.value)}
-            placeholder="Control Desk"
-          />
-          <button type="button" className="ghost-btn" onClick={loadAlerts}>
-            Refresh Feed
-          </button>
-          <button type="button" className="ghost-btn" onClick={logout}>
-            Sign Out
-          </button>
-        </aside>
+  return (
+    <div className="app-layout">
+      <header className="top-bar">
+        <div className="brand">
+          <Icons.Asterisk /> EMERGENCY CORE
+        </div>
+        <div className="top-bar-actions">
+          <div className="bell-container">
+            <Icons.Bell />
+            <div className="bell-dot"></div>
+          </div>
+          <div className="user-profile">
+            <div className="user-info">
+              <span className="user-name">{userName}</span>
+              <span className="user-role">{normalizeRole(role) || "COMMAND"}</span>
+            </div>
+            <div className="avatar">
+              <Icons.User />
+            </div>
+          </div>
+        </div>
       </header>
 
-      <StatsBar stats={stats} />
-
-      <nav className="tab-row" aria-label="Dashboard views">
-        {TABS.map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            className={`tab-btn ${activeTab === tab.key ? "is-active" : ""}`}
-            onClick={() => setActiveTab(tab.key)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </nav>
-
-      <main className="content-panel">
-        {activeTab === "active" && (
-          <section>
-            {loadingAlerts && (
-              <p className="muted-text">Loading live alerts...</p>
-            )}
-            {alertsError && <p className="error-text">{alertsError}</p>}
-
-            {!loadingAlerts && !alertsError && activeAlerts.length === 0 && (
-              <p className="empty-state">
-                No active or responding incidents right now.
-              </p>
-            )}
-
-            <div className="alert-grid">
-              {activeAlerts.map((alert) => (
-                <AlertCard
-                  key={alert.id}
-                  alert={alert}
-                  onAcknowledge={handleAcknowledge}
-                  isAcknowledgePending={pendingAckIds.has(alert.id)}
-                />
-              ))}
+      <aside className={`sidebar ${isSidebarCollapsed ? "collapsed" : ""}`}>
+        <div className="sidebar-header">
+          {!isSidebarCollapsed ? (
+            <div className="sidebar-title-container">
+              <h1>
+                <span style={{ color: "var(--red-main)", display: "flex", alignItems: "center" }}>
+                  <Icons.Shield />
+                </span>
+                COMMAND
+              </h1>
+              <p className="sidebar-subtext">OPERATIONS</p>
             </div>
-          </section>
+          ) : (
+            <div className="sidebar-title-container" style={{ paddingBottom: '0.5rem' }}>
+              <span style={{ color: "var(--red-main)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Icons.Shield />
+              </span>
+            </div>
+          )}
+          <button
+            className="sidebar-toggle-btn"
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {isSidebarCollapsed ? <Icons.ChevronRight /> : <Icons.ChevronLeft />}
+          </button>
+        </div>
+
+        <nav className="sidebar-nav" aria-label="Dashboard views">
+          {TABS.map((tab) => {
+            const IconComponent = tab.icon;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                className={`tab-btn ${activeTab === tab.key ? "is-active" : ""}`}
+                onClick={() => setActiveTab(tab.key)}
+                title={isSidebarCollapsed ? tab.label : undefined}
+              >
+                <IconComponent />
+                {!isSidebarCollapsed && tab.label}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="staff-tools">
+          {!isSidebarCollapsed && <label htmlFor="staff-name">Acknowledge as</label>}
+          {!isSidebarCollapsed && (
+            <input
+              id="staff-name"
+              type="text"
+              value={staffName}
+              maxLength={120}
+              onChange={(event) => setStaffName(event.target.value)}
+              placeholder="Control Desk"
+            />
+          )}
+          <button type="button" className="ghost-btn" onClick={loadAlerts} title={isSidebarCollapsed ? "Refresh Feed" : undefined}>
+            {isSidebarCollapsed ? <Icons.Refresh /> : "Refresh Feed"}
+          </button>
+          <button type="button" className="ghost-btn" onClick={logout} title={isSidebarCollapsed ? "Sign Out" : undefined}>
+            {isSidebarCollapsed ? <Icons.Logout /> : "Sign Out"}
+          </button>
+        </div>
+      </aside>
+
+      <main className="main-content">
+        {activeTab === "active" && (
+          <>
+            <StatsBar stats={stats} />
+            <section>
+              <h2 className="section-title">Active Critical Alerts</h2>
+              {loadingAlerts && (
+                <p className="muted-text">Loading live alerts...</p>
+              )}
+              {alertsError && <p className="error-text">{alertsError}</p>}
+
+              {!loadingAlerts && !alertsError && activeAlerts.length === 0 && (
+                <div className="empty-state">
+                  <svg className="empty-state-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+                  <p>No active or responding incidents right now.</p>
+                </div>
+              )}
+
+              <div className="alert-grid">
+                {activeAlerts.map((alert) => (
+                  <AlertCard
+                    key={alert.id}
+                    alert={alert}
+                    onAcknowledge={handleAcknowledge}
+                    isAcknowledgePending={pendingAckIds.has(alert.id)}
+                  />
+                ))}
+              </div>
+            </section>
+          </>
         )}
 
         {activeTab === "log" && (
           <section>
+            <h2 className="section-title">Incident Log</h2>
             {visibleAlerts.length === 0 && !loadingAlerts && (
-              <p className="empty-state">Incident log is empty.</p>
+              <div className="empty-state">
+                <svg className="empty-state-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                <p>Incident log is empty.</p>
+              </div>
             )}
 
             {visibleAlerts.length > 0 && (
-              <div className="log-table-wrap">
-                <table className="incident-log">
-                  <thead>
-                    <tr>
-                      <th>Time</th>
-                      <th>Type</th>
-                      <th>Room</th>
-                      <th>Device</th>
-                      <th>Status</th>
-                      <th>Acknowledged By</th>
-                      <th>Gemini Brief</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visibleAlerts.map((alert) => (
-                      <tr key={alert.id}>
-                        <td>{formatLogTime(alert.timestamp)}</td>
-                        <td>
-                          <span className={`type-chip type-${alert.type}`}>
-                            {alert.type}
-                          </span>
-                        </td>
-                        <td>{alert.room}</td>
-                        <td>{alert.device_name}</td>
-                        <td>{alert.status}</td>
-                        <td>{alert.acknowledged_by || "-"}</td>
-                        <td>{briefSummary(alert.gemini_brief)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="incident-log-cards">
+                {visibleAlerts.map((alert) => (
+                  <div className="log-card" key={alert.id}>
+                    <div className="log-card-header">
+                      <div className="log-card-title">
+                        <span className={`category-label type-${alert.type}`}>
+                          {alert.type}
+                        </span>
+                        <h4>Room {alert.room}</h4>
+                        <span className="log-device-name">({alert.device_name})</span>
+                      </div>
+                      <div className="log-card-meta">
+                        <span className={`status-pill status-${alert.status}`}>
+                          {alert.status}
+                        </span>
+                        <span className="log-time">{formatLogTime(alert.timestamp)}</span>
+                      </div>
+                    </div>
+                    <div className="log-card-body">
+                      <p><strong>Brief:</strong> {briefSummary(alert.gemini_brief)}</p>
+                    </div>
+                    <div className="log-card-footer">
+                      <span>Acknowledged by: <strong>{alert.acknowledged_by || "Pending"}</strong></span>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </section>
@@ -372,6 +439,16 @@ function App() {
             error={insightsError}
             onGenerate={handleGenerateInsights}
           />
+        )}
+
+        {activeTab === "settings" && (
+          <section>
+            <h2 className="section-title">Settings</h2>
+            <div className="empty-state">
+              <svg className="empty-state-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+              <p>Settings are configured via control desk currently.</p>
+            </div>
+          </section>
         )}
       </main>
     </div>
