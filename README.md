@@ -6,6 +6,9 @@ Real-time emergency coordination platform for hospitality venues.
 
 - **Backend:** FastAPI + Firestore (Firebase Admin SDK) + Socket.IO + Gemini
 - **Frontend:** React (Vite) + Axios + Socket.IO client
+<p align="center">
+  <img src="./architecturediagram.png" alt="Architecture Diagram"/>
+</p>
 
 ## Implemented Scope
 
