@@ -17,7 +17,16 @@ def _get_db() -> firestore.Client:
         try:
             firebase_admin.get_app()
         except ValueError:
-            firebase_admin.initialize_app()
+            import os
+            import json
+            from firebase_admin import credentials
+            creds_json = os.getenv("FIREBASE_CREDENTIALS_JSON")
+            if creds_json:
+                creds_dict = json.loads(creds_json)
+                cred = credentials.Certificate(creds_dict)
+                firebase_admin.initialize_app(cred)
+            else:
+                firebase_admin.initialize_app()
 
         _db = firestore.client()
 
