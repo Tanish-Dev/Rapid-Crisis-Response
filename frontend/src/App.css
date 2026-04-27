@@ -19,6 +19,8 @@
   padding: 0 32px;
   border-bottom: 1px solid #a2a4a5;
   z-index: 20;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .brand {
@@ -29,12 +31,40 @@
   align-items: center;
   gap: 8px;
   color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex-shrink: 1;
 }
 
 .top-bar-actions {
   display: flex;
   align-items: center;
   gap: 24px;
+  flex-shrink: 0;
+}
+
+/* Header logout — hidden on desktop, shown in top-bar on mobile */
+.header-logout-btn {
+  display: none;
+}
+
+/* Mobile inline refresh — hidden on desktop */
+.mobile-inline-refresh {
+  display: none;
+}
+
+/* Section title row — always flex */
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.section-title-row .section-title {
+  margin-bottom: 0;
 }
 
 .bell-container {
@@ -74,6 +104,10 @@
   font-weight: 700;
   color: var(--text-main);
   line-height: 1.2;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .user-role {
@@ -741,45 +775,62 @@
 @media (max-width: 790px) {
   .app-layout {
     grid-template-columns: 1fr;
-    grid-template-rows: 90px 1fr;
+    grid-template-rows: 60px 1fr;
   }
 
+  /* ── Top bar ── */
   .top-bar {
-    padding: 0 24px;
+    padding: 0 16px;
+    gap: 8px;
   }
 
   .brand {
-    font-size: 1.4rem;
+    font-size: 0.85rem;
+    gap: 6px;
+    letter-spacing: 0.02em;
   }
 
-  .user-name {
-    font-size: 1rem;
+  .brand svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+
+  .top-bar-actions {
+    gap: 10px;
+  }
+
+  /* hide the text labels in header on small screens */
+  .user-info {
+    display: none;
   }
 
   .avatar {
-    width: 40px;
-    height: 40px;
+    width: 34px;
+    height: 34px;
   }
 
+  /* ── Bottom pill navbar ── */
   .sidebar {
     position: fixed;
-    bottom: 24px;
+    bottom: 14px;
     left: 50%;
     transform: translateX(-50%);
-    width: calc(100% - 48px);
-    max-width: 420px;
+    width: calc(100% - 28px);
+    max-width: 480px;
     height: auto;
     flex-direction: row !important;
     border-right: none;
     border: 1px solid #afafaf;
-    border-radius: 24px;
+    border-radius: 20px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-    padding: 0.5rem;
+    padding: 0.35rem;
     z-index: 100;
+    overflow: hidden;
   }
 
   .sidebar.collapsed {
-    width: calc(100% - 48px);
+    width: calc(100% - 28px);
   }
 
   .sidebar-header {
@@ -788,31 +839,96 @@
 
   .sidebar-nav {
     flex-direction: row !important;
-    justify-content: space-around;
+    justify-content: stretch;
     padding: 0;
-    gap: 0.25rem;
+    gap: 0;
     flex-grow: 1;
+    min-width: 0;
   }
 
   .tab-btn {
-    padding: 0.5rem;
+    flex: 1;
+    min-width: 0;
+    padding: 0.6rem 0.3rem;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    border-radius: 16px;
-    font-size: 0.8rem;
-    gap: 0.35rem;
+    border-radius: 14px;
+    font-size: 0.52rem;
+    gap: 0.15rem;
+    white-space: nowrap;
+    overflow: hidden;
   }
 
   .tab-btn svg {
-    width: 28px;
-    height: 28px;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
   }
 
   .sidebar.collapsed .tab-btn {
-    padding: 0.5rem;
-    width: 90px;
-    height: 90px;
+    padding: 0.4rem 0.2rem;
+    width: auto;
+    height: auto;
+  }
+
+  /* ── Header logout button (mobile only) ── */
+  .header-logout-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.4rem;
+    background: transparent;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+
+  .header-logout-btn:hover,
+  .header-logout-btn:active {
+    background: #fee2e2;
+    color: var(--red-main);
+    border-color: #fca5a5;
+  }
+
+  .header-logout-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  /* Refresh button next to section title — mobile only */
+  .mobile-inline-refresh {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.45rem;
+    background: transparent;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+
+  .mobile-inline-refresh:hover,
+  .mobile-inline-refresh:active {
+    background: #dbeafe;
+    color: #2563eb;
+    border-color: #93c5fd;
+  }
+
+  .mobile-inline-refresh svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  /* Hide Settings tab on mobile */
+  .desktop-only-tab {
+    display: none !important;
   }
 
   .staff-tools {
@@ -820,7 +936,7 @@
   }
 
   .main-content {
-    padding: 1.5rem 1.5rem 120px 1.5rem;
+    padding: 1.5rem 1rem 110px 1rem;
   }
 
   .stats-bar {

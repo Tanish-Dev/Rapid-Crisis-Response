@@ -247,6 +247,7 @@ export default function LoginPage() {
           font-size: 0.95rem;
           font-weight: 600;
           cursor: pointer;
+          letter-spacing: -0.04em;
           transition: background-color 0.2s;
           display: flex;
           align-items: center;

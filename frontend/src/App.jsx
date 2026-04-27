@@ -288,6 +288,15 @@ function App() {
               <Icons.User />
             </div>
           </div>
+          {/* Logout — shown in header on mobile only */}
+          <button
+            type="button"
+            className="header-logout-btn"
+            onClick={logout}
+            title="Sign Out"
+          >
+            <Icons.Logout />
+          </button>
         </div>
       </header>
 
@@ -326,7 +335,7 @@ function App() {
               <button
                 key={tab.key}
                 type="button"
-                className={`tab-btn ${activeTab === tab.key ? "is-active" : ""}`}
+                className={`tab-btn ${activeTab === tab.key ? "is-active" : ""} ${tab.key === "settings" ? "desktop-only-tab" : ""}`}
                 onClick={() => setActiveTab(tab.key)}
                 title={isSidebarCollapsed ? tab.label : undefined}
               >
@@ -363,7 +372,17 @@ function App() {
           <>
             <StatsBar stats={stats} />
             <section>
-              <h2 className="section-title">Active Critical Alerts</h2>
+              <div className="section-title-row">
+                <h2 className="section-title">Active Critical Alerts</h2>
+                <button
+                  type="button"
+                  className="mobile-inline-refresh"
+                  onClick={loadAlerts}
+                  title="Refresh alerts"
+                >
+                  <Icons.Refresh />
+                </button>
+              </div>
               {loadingAlerts && (
                 <p className="muted-text">Loading live alerts...</p>
               )}
