@@ -33,6 +33,7 @@ const TABS = [
 const ROLE_ALERT_TYPES = {
   manager: null,
   medical: new Set(["medical"]),
+  medicine: new Set(["medical"]),
   security: new Set(["security", "fire"]),
   general: new Set(["distress"]),
 };
