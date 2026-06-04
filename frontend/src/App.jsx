@@ -182,7 +182,7 @@ function App() {
   }, [user]);
 
   const handleAcknowledge = useCallback(
-    async (alertId) => {
+    async (alertId, newStatus) => {
       setPendingAckIds((current) => {
         const next = new Set(current);
         next.add(alertId);
@@ -192,7 +192,7 @@ function App() {
       try {
         const acknowledgedBy = staffName.trim() || "Venue Staff";
         const response = await acknowledgeAlert(alertId, {
-          status: "responding",
+          status: newStatus,
           acknowledged_by: acknowledgedBy,
         });
 
@@ -237,7 +237,7 @@ function App() {
   );
 
   const activeAlerts = useMemo(
-    () => visibleAlerts.filter((alert) => alert.status !== "resolved"),
+    () => visibleAlerts,
     [visibleAlerts],
   );
 

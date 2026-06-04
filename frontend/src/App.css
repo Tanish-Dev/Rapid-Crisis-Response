@@ -349,6 +349,10 @@
   color: var(--red-main);
 }
 
+.stat-tile strong.resolved-stat {
+  color: #16a34a;
+}
+
 .section-title {
   font-size: 1.8rem;
   font-weight: 800;
@@ -490,12 +494,12 @@
 }
 
 .btn-resolved {
-  background-color: #0f172a;
+  background-color: #16a34a;
   color: #fff;
 }
 
 .btn-resolved:hover {
-  background-color: #1e293b;
+  background-color: #15803d;
 }
 
 .btn-responding:disabled,

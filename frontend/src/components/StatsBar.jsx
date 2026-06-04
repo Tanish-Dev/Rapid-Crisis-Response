@@ -12,7 +12,7 @@ function StatsBar({ stats }) {
       {STAT_CONFIG.map((item) => (
         <article className="stat-tile" key={item.key}>
           <p>{item.label}</p>
-          <strong className={item.key === "active" ? "active" : ""}>
+          <strong className={item.key === "active" ? "active" : item.key === "resolved" ? "resolved-stat" : ""}>
             {stats[item.key] ?? 0}
           </strong>
         </article>
