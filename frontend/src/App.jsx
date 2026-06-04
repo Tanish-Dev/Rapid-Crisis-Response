@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AlertCard from "./components/AlertCard";
 import RiskInsightsPanel from "./components/RiskInsightsPanel";
 import StatsBar from "./components/StatsBar";
@@ -34,11 +34,94 @@ const ROLE_ALERT_TYPES = {
   manager: null,
   medical: new Set(["medical"]),
   medicine: new Set(["medical"]),
-  security: new Set(["security", "fire"]),
+  security: new Set(["security"]),
   general: new Set(["distress"]),
 };
 
 const ALERT_ENTER_ANIMATION_MS = 520;
+const ALERT_NOTIFICATION_DURATION_MS = 6000;
+const ALERT_NOTIFICATION_EXIT_MS = 700;
+
+let alertAudioContext;
+let isAlertAudioUnlocked = false;
+
+function getAlertAudioContext() {
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+
+  if (!AudioContext) {
+    return null;
+  }
+
+  try {
+    if (!alertAudioContext || alertAudioContext.state === "closed") {
+      alertAudioContext = new AudioContext();
+    }
+
+    return alertAudioContext;
+  } catch {
+    return null;
+  }
+}
+
+async function unlockAlertAudio() {
+  const audioContext = getAlertAudioContext();
+
+  if (!audioContext) {
+    return;
+  }
+
+  try {
+    if (audioContext.state === "suspended") {
+      await audioContext.resume();
+    }
+
+    isAlertAudioUnlocked = audioContext.state === "running";
+  } catch {
+    isAlertAudioUnlocked = false;
+  }
+}
+
+function playAlertNotificationTone() {
+  const audioContext = getAlertAudioContext();
+
+  if (!audioContext) {
+    return;
+  }
+
+  const play = () => {
+    const startAt = audioContext.currentTime + 0.01;
+    const gain = audioContext.createGain();
+    gain.connect(audioContext.destination);
+    gain.gain.setValueAtTime(0.0001, startAt);
+    gain.gain.exponentialRampToValueAtTime(0.34, startAt + 0.018);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 1.08);
+
+    [1046.5, 1568].forEach((frequency, index) => {
+      const oscillator = audioContext.createOscillator();
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(frequency, startAt);
+      oscillator.frequency.exponentialRampToValueAtTime(frequency * 1.08, startAt + 0.18);
+      oscillator.connect(gain);
+      oscillator.start(startAt + index * 0.07);
+      oscillator.stop(startAt + 0.82 + index * 0.05);
+    });
+  };
+
+  try {
+    if (!isAlertAudioUnlocked || audioContext.state === "suspended") {
+      unlockAlertAudio().then(() => {
+        if (isAlertAudioUnlocked) {
+          play();
+        }
+      });
+      return;
+    }
+
+    play();
+  } catch {
+    // Browser autoplay rules can block programmatic audio before user interaction.
+  }
+}
 
 function normalizeAlert(raw) {
   return {
@@ -117,7 +200,7 @@ function filterAlertsByRole(alerts, role) {
 }
 
 function App() {
-  const { user, role, logout } = useAuth();
+  const { user, role, department, logout } = useAuth();
 
   const [alerts, setAlerts] = useState([]);
   const [activeTab, setActiveTab] = useState("active");
@@ -126,6 +209,13 @@ function App() {
   const [alertsError, setAlertsError] = useState("");
   const [pendingAckIds, setPendingAckIds] = useState(new Set());
   const [enteringAlertIds, setEnteringAlertIds] = useState(new Set());
+  const [notificationAlert, setNotificationAlert] = useState(null);
+  const [isNotificationVisible, setIsNotificationVisible] = useState(false);
+  const [isNotificationExiting, setIsNotificationExiting] = useState(false);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [notificationSequence, setNotificationSequence] = useState(0);
+  const notificationTimerRef = useRef(null);
+  const notificationExitTimerRef = useRef(null);
 
   const [insights, setInsights] = useState(null);
   const [insightsLoading, setInsightsLoading] = useState(false);
@@ -164,12 +254,61 @@ function App() {
       return;
     }
 
+    const handleAudioUnlock = () => {
+      unlockAlertAudio();
+    };
+
+    window.addEventListener("pointerdown", handleAudioUnlock, { once: true });
+    window.addEventListener("keydown", handleAudioUnlock, { once: true });
+
+    return () => {
+      window.removeEventListener("pointerdown", handleAudioUnlock);
+      window.removeEventListener("keydown", handleAudioUnlock);
+    };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    socket.auth = { department: department || role || "general" };
     socket.connect();
 
     const handleNewAlert = (incoming) => {
       const normalized = normalizeAlert(incoming);
+      const userDept = department || role;
+      const allowed = ROLE_ALERT_TYPES[normalizeRole(userDept)];
+      const isAllowed = allowed === null || allowed.has(normalized.type);
 
-      setAlerts((current) => upsertAlert(current, normalized));
+      setAlerts((current) => {
+        if (!isAllowed) return current;
+        return upsertAlert(current, normalized);
+      });
+
+      if (!isAllowed) return;
+      setNotificationAlert(normalized);
+      setNotificationSequence((current) => current + 1);
+      setIsNotificationExiting(false);
+      setIsNotificationVisible(true);
+      setUnreadNotificationCount((count) => count + 1);
+      playAlertNotificationTone();
+
+      if (notificationTimerRef.current) {
+        window.clearTimeout(notificationTimerRef.current);
+      }
+      if (notificationExitTimerRef.current) {
+        window.clearTimeout(notificationExitTimerRef.current);
+      }
+
+      notificationTimerRef.current = window.setTimeout(() => {
+        setIsNotificationExiting(true);
+      }, ALERT_NOTIFICATION_DURATION_MS - ALERT_NOTIFICATION_EXIT_MS);
+
+      notificationExitTimerRef.current = window.setTimeout(() => {
+        setIsNotificationVisible(false);
+        setIsNotificationExiting(false);
+      }, ALERT_NOTIFICATION_DURATION_MS);
 
       if (!normalized.id) {
         return;
@@ -201,8 +340,21 @@ function App() {
       socket.off("new_alert", handleNewAlert);
       socket.off("alert_updated", handleAlertUpdated);
       socket.disconnect();
+      if (notificationTimerRef.current) {
+        window.clearTimeout(notificationTimerRef.current);
+      }
+      if (notificationExitTimerRef.current) {
+        window.clearTimeout(notificationExitTimerRef.current);
+      }
     };
-  }, [user]);
+  }, [user, role, department]);
+
+  const handleNotificationBellClick = useCallback(() => {
+    unlockAlertAudio();
+    setUnreadNotificationCount(0);
+    setIsNotificationExiting(false);
+    setIsNotificationVisible((current) => (notificationAlert ? !current : false));
+  }, [notificationAlert]);
 
   const handleAcknowledge = useCallback(
     async (alertId, newStatus) => {
@@ -255,8 +407,8 @@ function App() {
   }, []);
 
   const visibleAlerts = useMemo(
-    () => filterAlertsByRole(alerts, role),
-    [alerts, role],
+    () => filterAlertsByRole(alerts, department || role),
+    [alerts, department, role],
   );
 
   const activeAlerts = useMemo(
@@ -299,10 +451,20 @@ function App() {
           <Icons.Asterisk /> EMERGENCY CORE
         </div>
         <div className="top-bar-actions">
-          <div className="bell-container">
+          <button
+            type="button"
+            className="bell-container notification-bell-button"
+            onClick={handleNotificationBellClick}
+            aria-label="Toggle latest alert notification"
+          >
             <Icons.Bell />
-            <div className="bell-dot"></div>
-          </div>
+            {unreadNotificationCount > 0 && (
+              <span className="notification-count">
+                {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
+              </span>
+            )}
+            {unreadNotificationCount === 0 && <div className="bell-dot"></div>}
+          </button>
           <div className="user-profile">
             <div className="user-info">
               <span className="user-name">{userName}</span>
@@ -323,6 +485,28 @@ function App() {
           </button>
         </div>
       </header>
+
+      {notificationAlert && isNotificationVisible && (
+        <aside
+          key={notificationSequence}
+          className={`floating-alert-notification ${isNotificationExiting ? "is-exiting" : ""}`}
+          aria-live="assertive"
+        >
+          <div className="floating-alert-header">
+            <span className={`category-label type-${notificationAlert.type}`}>
+              {notificationAlert.type}
+            </span>
+            <span className={`status-pill status-${notificationAlert.status}`}>
+              {notificationAlert.status}
+            </span>
+          </div>
+          <strong>Room {notificationAlert.room}</strong>
+          <p>{briefSummary(notificationAlert.gemini_brief)}</p>
+          <span className="floating-alert-meta">
+            Device: {notificationAlert.device_name}
+          </span>
+        </aside>
+      )}
 
       <aside className={`sidebar ${isSidebarCollapsed ? "collapsed" : ""}`}>
         <div className="sidebar-header">

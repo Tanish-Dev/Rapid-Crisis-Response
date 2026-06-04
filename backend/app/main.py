@@ -34,6 +34,8 @@ api.add_middleware(
 
 @sio.event
 async def connect(sid: str, environ: dict, auth: dict | None):
+    department = (auth or {}).get("department", "general")
+    await sio.enter_room(sid, department)
     return True
 
 
@@ -52,10 +54,18 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+ALERT_DEPARTMENT_MAP: dict[str, set[str]] = {
+    "medical": {"medical", "medicine", "manager"},
+    "security": {"security", "manager"},
+    "distress": {"general", "manager"},
+    "fire": {"manager"},
+}
+
+
 @api.post("/api/register-device")
 async def register_device_route(payload: RegisterDeviceRequest):
     try:
-        saved = register_device(payload.role, payload.fcm_token)
+        saved = register_device(payload.role, payload.fcm_token, department=payload.department)
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     return saved
@@ -63,13 +73,7 @@ async def register_device_route(payload: RegisterDeviceRequest):
 
 async def notify_staff_for_incident(incident: dict) -> None:
     alert_type = incident.get("type")
-    role_map = {
-        "medical": ["medical", "manager"],
-        "fire": ["security", "manager"],
-        "security": ["security", "manager"],
-        "distress": ["general", "manager"],
-    }
-    target_roles = role_map.get(alert_type, ["manager"])
+    target_departments = ALERT_DEPARTMENT_MAP.get(alert_type, {"manager"})
 
     try:
         db = _get_db()
@@ -80,7 +84,8 @@ async def notify_staff_for_incident(incident: dict) -> None:
 
         for doc in devices_ref:
             device = doc.to_dict()
-            if device.get("role") in target_roles:
+            device_dept = device.get("department") or device.get("role")
+            if device_dept in target_departments:
                 await send_notification(device["fcm_token"], title, body)
     except Exception as exc:
         print(f"Notify staff error: {exc}")
@@ -120,12 +125,13 @@ async def escalation_timer(incident_id: str, db) -> None:
         body = escalation_message or "Alert unacknowledged for 90 seconds. Immediate manager action required."
 
         for doc in devices:
+            device = doc.to_dict()
+            device_dept = device.get("department") or device.get("role")
             print(
-                f"[ESCALATION] Checking device role: {doc.to_dict().get('role')}",
+                f"[ESCALATION] Checking device department: {device_dept}",
                 flush=True,
             )
-            device = doc.to_dict()
-            if device.get("role") == "manager":
+            if device_dept == "manager":
                 print("[ESCALATION] Generating escalation message...", flush=True)
                 try:
                     escalation_message = gemini_service.generate_escalation_message(incident)
@@ -175,7 +181,9 @@ async def create_alert(payload: AlertCreateRequest):
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-    await sio.emit("new_alert", final_incident)
+    target_rooms = ALERT_DEPARTMENT_MAP.get(final_incident["type"], {"manager"})
+    for room in target_rooms:
+        await sio.emit("new_alert", final_incident, room=room)
     asyncio.create_task(notify_staff_for_incident(final_incident))
     asyncio.create_task(escalation_timer(final_incident["id"], _get_db()))
     return final_incident
@@ -219,7 +227,9 @@ async def patch_alert(alert_id: str, patch: AlertUpdateRequest):
     if updated is None:
         raise HTTPException(status_code=404, detail="Alert not found.")
 
-    await sio.emit("alert_updated", updated)
+    target_rooms = ALERT_DEPARTMENT_MAP.get(updated.get("type"), {"manager"})
+    for room in target_rooms:
+        await sio.emit("alert_updated", updated, room=room)
     return updated
 
 

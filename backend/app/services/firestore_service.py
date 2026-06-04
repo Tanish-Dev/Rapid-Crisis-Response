@@ -127,11 +127,12 @@ def get_recent_incidents(days: int = 30, limit: int = 500) -> list[dict[str, Any
         raise RuntimeError("Failed to load recent incidents from Firestore.") from exc
 
 
-def register_device(role: str, fcm_token: str) -> dict:
+def register_device(role: str, fcm_token: str, department: str | None = None) -> dict:
     db = _get_db()
     doc_ref = db.collection("staff_devices").document()
     data = {
         "role": role,
+        "department": department if department else role,
         "fcm_token": fcm_token,
         "registered_at": datetime.now(timezone.utc).isoformat(),
     }

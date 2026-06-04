@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class AlertType(str, Enum):
@@ -22,9 +22,16 @@ class AlertStatus(str, Enum):
 
 class AlertCreateRequest(BaseModel):
     type: AlertType
-    room: str = Field(min_length=1, max_length=100)
+    room: str = Field(min_length=1, max_length=10)
     device_name: str = Field(min_length=1, max_length=120)
     timestamp: datetime
+
+    @field_validator("room")
+    @classmethod
+    def room_must_be_numeric(cls, v: str) -> str:
+        if not v.isdigit():
+            raise ValueError("room must contain digits only")
+        return v
 
 
 class AlertUpdateRequest(BaseModel):
@@ -35,4 +42,5 @@ class AlertUpdateRequest(BaseModel):
 
 class RegisterDeviceRequest(BaseModel):
     role: Literal["medical", "security", "manager", "general"]
+    department: Optional[str] = None
     fcm_token: str

@@ -14,6 +14,7 @@ const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY;
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(undefined);
   const [role, setRole] = useState(null);
+  const [department, setDepartment] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -30,8 +31,10 @@ export function AuthProvider({ children }) {
         if (!messaging) return;
         const fcmToken = await getToken(messaging, { vapidKey: VAPID_KEY });
         const rolePayload = role || "general";
+        const departmentPayload = department || role || "general";
         await api.post("/api/register-device", {
           role: rolePayload,
+          department: departmentPayload,
           fcm_token: fcmToken,
         });
       } catch (error) {
@@ -40,7 +43,7 @@ export function AuthProvider({ children }) {
     };
 
     registerToken();
-  }, [role, user]);
+  }, [role, department, user]);
 
   useEffect(() => {
     let unsubscribe = () => {};
@@ -60,17 +63,23 @@ export function AuthProvider({ children }) {
               const fetchedRole = userDoc.exists()
                 ? userDoc.data().role || null
                 : null;
-              console.log("[Auth] Fetched role:", fetchedRole);
+              const fetchedDepartment = userDoc.exists()
+                ? userDoc.data().department || fetchedRole
+                : null;
+              console.log("[Auth] Fetched role:", fetchedRole, "department:", fetchedDepartment);
               setRole(fetchedRole);
+              setDepartment(fetchedDepartment);
               setUser(firebaseUser);
             } else {
               setUser(null);
               setRole(null);
+              setDepartment(null);
             }
           } catch (err) {
             console.error("[Auth] Firestore fetch error:", err);
             setUser(firebaseUser || null);
             setRole(null);
+            setDepartment(null);
           } finally {
             setLoading(false);
           }
@@ -78,12 +87,14 @@ export function AuthProvider({ children }) {
         () => {
           setUser(null);
           setRole(null);
+          setDepartment(null);
           setLoading(false);
         },
       );
     } catch {
       setUser(null);
       setRole(null);
+      setDepartment(null);
       setLoading(false);
     }
 
@@ -93,7 +104,7 @@ export function AuthProvider({ children }) {
   const logout = () => signOut(auth);
 
   return (
-    <AuthContext.Provider value={{ user, role, loading, logout }}>
+    <AuthContext.Provider value={{ user, role, department, loading, logout }}>
       {!loading && children}
     </AuthContext.Provider>
   );

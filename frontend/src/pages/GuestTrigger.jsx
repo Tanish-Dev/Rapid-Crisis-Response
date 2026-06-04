@@ -133,9 +133,10 @@ export default function GuestTrigger() {
 
         <input
           type="text"
+          inputMode="numeric"
           placeholder="ROOM NO. (REQUIRED)"
           value={room}
-          onChange={(e) => { setRoom(e.target.value); setError(null); }}
+          onChange={(e) => { const v = e.target.value.replace(/\D/g, ""); setRoom(v); setError(null); }}
           style={{
             width: '100%',
             background: 'transparent',
