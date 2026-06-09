@@ -82,11 +82,14 @@ async def notify_staff_for_incident(incident: dict) -> None:
         brief = incident.get("gemini_brief")
         body = (brief.get("summary") if isinstance(brief, dict) else brief) or "Immediate response required."
 
+        tasks = []
         for doc in devices_ref:
             device = doc.to_dict()
             device_dept = device.get("department") or device.get("role")
             if device_dept in target_departments:
-                await send_notification(device["fcm_token"], title, body)
+                tasks.append(send_notification(device["fcm_token"], title, body))
+        if tasks:
+            await asyncio.gather(*tasks)
     except Exception as exc:
         print(f"Notify staff error: {exc}")
 
@@ -114,41 +117,21 @@ async def escalation_timer(incident_id: str, db) -> None:
             flush=True,
         )
         escalation_message = gemini_service.generate_escalation_message(incident)
-
-        devices_ref = db.collection("staff_devices").stream()
-        devices = list(devices_ref)
-        print(
-            f"[ESCALATION] Found {len(devices)} devices in staff_devices",
-            flush=True,
-        )
         title = f"ESCALATION: Unacknowledged {incident.get('type','').upper()} at Room {incident.get('room')}"
         body = escalation_message or "Alert unacknowledged for 90 seconds. Immediate manager action required."
 
-        for doc in devices:
+        devices_ref = db.collection("staff_devices").stream()
+        tasks = []
+        for doc in devices_ref:
             device = doc.to_dict()
             device_dept = device.get("department") or device.get("role")
-            print(
-                f"[ESCALATION] Checking device department: {device_dept}",
-                flush=True,
-            )
             if device_dept == "manager":
-                print("[ESCALATION] Generating escalation message...", flush=True)
-                try:
-                    escalation_message = gemini_service.generate_escalation_message(incident)
-                    print(
-                        f"[ESCALATION] Message generated: {escalation_message[:60]}",
-                        flush=True,
-                    )
-                    title = f"ESCALATION: Unacknowledged {incident.get('type','').upper()} at Room {incident.get('room')}"
-                    body = escalation_message or "Alert unacknowledged for 90 seconds."
-                    print(
-                        f"[ESCALATION] Sending FCM to {device['fcm_token'][:20]}...",
-                        flush=True,
-                    )
-                    await send_notification(device["fcm_token"], title, body)
-                    print("[ESCALATION] FCM call completed", flush=True)
-                except Exception as e:
-                    print(f"[ESCALATION] Error in loop: {e}", flush=True)
+                print(f"[ESCALATION] Queueing FCM to manager device {device.get('fcm_token', '')[:20]}...", flush=True)
+                tasks.append(send_notification(device["fcm_token"], title, body))
+        
+        if tasks:
+            await asyncio.gather(*tasks)
+            print(f"[ESCALATION] Sent escalation notifications to {len(tasks)} manager device(s)", flush=True)
 
     except Exception as exc:
         print(f"Escalation error: {exc}")
@@ -175,18 +158,29 @@ async def create_alert(payload: AlertCreateRequest):
 
     try:
         created = create_incident(incident_payload)
-        brief = gemini_service.generate_alert_brief(created)
-        with_brief = update_incident(created["id"], {"gemini_brief": brief})
-        final_incident = with_brief or created
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-    target_rooms = ALERT_DEPARTMENT_MAP.get(final_incident["type"], {"manager"})
+    target_rooms = ALERT_DEPARTMENT_MAP.get(created["type"], {"manager"})
     for room in target_rooms:
-        await sio.emit("new_alert", final_incident, room=room)
-    asyncio.create_task(notify_staff_for_incident(final_incident))
-    asyncio.create_task(escalation_timer(final_incident["id"], _get_db()))
-    return final_incident
+        await sio.emit("new_alert", created, room=room)
+
+    async def process_alert_background(incident):
+        try:
+            brief = gemini_service.generate_alert_brief(incident)
+            with_brief = update_incident(incident["id"], {"gemini_brief": brief})
+            final_incident = with_brief or incident
+            
+            for r in target_rooms:
+                await sio.emit("alert_updated", final_incident, room=r)
+            
+            await notify_staff_for_incident(final_incident)
+        except Exception as e:
+            print(f"Error in background alert processing: {e}")
+
+    asyncio.create_task(process_alert_background(created))
+    asyncio.create_task(escalation_timer(created["id"], _get_db()))
+    return created
 
 
 @api.get("/api/alerts")

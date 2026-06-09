@@ -1,5 +1,4 @@
-from __future__ import annotations
-
+import asyncio
 import json
 import os
 import logging
@@ -7,6 +6,7 @@ import logging
 import firebase_admin
 import firebase_admin.credentials as fb_credentials
 import firebase_admin.messaging as messaging
+from firebase_admin import firestore
 
 logger = logging.getLogger(__name__)
 
@@ -51,10 +51,26 @@ async def send_notification(token: str, title: str, body: str) -> None:
     )
 
     try:
-        message_id = messaging.send(message)
+        message_id = await asyncio.to_thread(messaging.send, message)
         logger.info("FCM sent: %s", message_id)
     except Exception as exc:
         logger.error("FCM failed: %s", exc)
+        exc_str = str(exc).lower()
+        if "unregistered" in exc_str or "notregistered" in exc_str:
+            try:
+                def delete_stale_token():
+                    db = firestore.client()
+                    devices = db.collection("staff_devices").where("fcm_token", "==", token).stream()
+                    deleted_count = 0
+                    for doc in devices:
+                        doc.reference.delete()
+                        deleted_count += 1
+                    if deleted_count > 0:
+                        logger.info("Automatically removed %d stale FCM token(s) from database", deleted_count)
+                
+                await asyncio.to_thread(delete_stale_token)
+            except Exception as delete_exc:
+                logger.error("Failed to remove stale token: %s", delete_exc)
 
 
 __all__ = ["send_notification"]
