@@ -11,7 +11,7 @@ def _parse_allowed_origins(value: str | None) -> list[str]:
     if not value:
         return ["http://localhost:5173"]
 
-    origins = [origin.strip() for origin in value.split(",") if origin.strip()]
+    origins = [origin.strip().rstrip("/") for origin in value.split(",") if origin.strip()]
     return origins or ["http://localhost:5173"]
 
 
