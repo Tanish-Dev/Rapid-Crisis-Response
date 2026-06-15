@@ -3,7 +3,7 @@ import AlertCard from "./components/AlertCard";
 import RiskInsightsPanel from "./components/RiskInsightsPanel";
 import StatsBar from "./components/StatsBar";
 import { useAuth } from "./context/AuthContext";
-import { acknowledgeAlert, fetchAlerts, fetchRiskInsights } from "./lib/api";
+import { acknowledgeAlert, fetchAlerts, fetchRiskInsights, fetchStaff } from "./lib/api";
 import { socket } from "./lib/socket";
 import LoginPage from "./pages/LoginPage";
 import "./App.css";
@@ -226,6 +226,25 @@ function App() {
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
+  const [staffList, setStaffList] = useState([]);
+  const staffRefreshRef = useRef(null);
+
+  const loadStaff = useCallback(async () => {
+    try {
+      const res = await fetchStaff();
+      setStaffList(res.data || []);
+    } catch {
+      // non-fatal — staff panel stays stale
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    loadStaff();
+    staffRefreshRef.current = setInterval(loadStaff, 15000);
+    return () => clearInterval(staffRefreshRef.current);
+  }, [loadStaff, user]);
+
   const loadAlerts = useCallback(async () => {
     setLoadingAlerts(true);
     setAlertsError("");
@@ -301,6 +320,7 @@ function App() {
         if (!isAllowed) return current;
         return upsertAlert(current, normalized);
       });
+      loadStaff();
 
       if (!isAllowed) return;
       setNotificationAlert(normalized);
@@ -347,6 +367,7 @@ function App() {
 
     const handleAlertUpdated = (incoming) => {
       setAlerts((current) => upsertAlert(current, normalizeAlert(incoming)));
+      loadStaff();
     };
 
     // On every (re)connect, resync the full list so nothing is missed while
@@ -473,6 +494,144 @@ function App() {
   }
 
   const userName = user?.email ? user.email.split('@')[0] : "Commander";
+
+  /* ── Telemetry widgets (render outside JSX tree for clarity) ── */
+
+  function DonutChart({ alerts }) {
+    const TYPE_COLORS = {
+      medical: "#dc2626",
+      fire: "#ea580c",
+      security: "#334155",
+      distress: "#64748b",
+    };
+    const counts = { medical: 0, fire: 0, security: 0, distress: 0 };
+    alerts.forEach((a) => { if (counts[a.type] !== undefined) counts[a.type]++; });
+    const total = Object.values(counts).reduce((s, v) => s + v, 0);
+
+    const R = 54; const CX = 70; const CY = 70;
+    let cumAngle = -90;
+    const slices = Object.entries(counts).map(([type, count]) => {
+      const pct = total ? count / total : 0;
+      const angle = pct * 360;
+      const start = cumAngle;
+      cumAngle += angle;
+      const r = (a) => (a * Math.PI) / 180;
+      const x1 = CX + R * Math.cos(r(start));
+      const y1 = CY + R * Math.sin(r(start));
+      const x2 = CX + R * Math.cos(r(start + angle));
+      const y2 = CY + R * Math.sin(r(start + angle));
+      const large = angle > 180 ? 1 : 0;
+      return { type, count, pct, color: TYPE_COLORS[type], d: pct > 0.001 ? `M ${CX} ${CY} L ${x1} ${y1} A ${R} ${R} 0 ${large} 1 ${x2} ${y2} Z` : null };
+    });
+
+    return (
+      <div className="widget-card">
+        <p className="widget-title">Incident Breakdown</p>
+        <div className="donut-row">
+          <svg width="140" height="140" viewBox="0 0 140 140">
+            {total === 0 ? (
+              <circle cx={CX} cy={CY} r={R} fill="#e2e8f0" />
+            ) : slices.map((s) => s.d && (
+              <path key={s.type} d={s.d} fill={s.color} className="donut-slice" />
+            ))}
+            <circle cx={CX} cy={CY} r={34} fill="var(--bg-white)" />
+            <text x={CX} y={CY - 6} textAnchor="middle" fontSize="22" fontWeight="800" fill="var(--text-main)">{total}</text>
+            <text x={CX} y={CY + 14} textAnchor="middle" fontSize="9" fontWeight="700" fill="var(--text-muted)" letterSpacing="0.05em">TOTAL</text>
+          </svg>
+          <div className="donut-legend">
+            {slices.map((s) => (
+              <div key={s.type} className="legend-row">
+                <span className="legend-dot" style={{ background: s.color }} />
+                <span className="legend-label">{s.type.charAt(0).toUpperCase() + s.type.slice(1)}</span>
+                <span className="legend-count">{s.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function StaffDirectory({ staffList }) {
+    const now = Date.now();
+    const ONLINE_THRESHOLD_MS = 3 * 60 * 1000;
+    return (
+      <div className="widget-card">
+        <p className="widget-title">Responders on Duty</p>
+        {staffList.length === 0 && (
+          <p className="widget-empty">No staff profiles found.</p>
+        )}
+        <div className="staff-list">
+          {staffList.filter(s => s.name && !s.name.includes("Test") && !s.name.includes("Admin")).map((s) => {
+            const lastSeenMs = s.last_seen ? new Date(s.last_seen).getTime() : 0;
+            const isOnline = now - lastSeenMs < ONLINE_THRESHOLD_MS;
+            const isBusy = s.current_incident_id && s.current_incident_id !== null;
+            const statusClass = !isOnline ? "status-offline" : isBusy ? "status-busy" : "status-available";
+            const statusLabel = !isOnline ? "Offline" : isBusy ? "Responding" : "Available";
+            const quals = Array.isArray(s.qualifications) ? s.qualifications : [];
+            return (
+              <div key={s.uid} className="staff-row">
+                <div className={`staff-status-dot ${statusClass}`} title={statusLabel} />
+                <div className="staff-info">
+                  <span className="staff-name">{s.name || "Staff Member"}</span>
+                  <span className="staff-meta">Floor {s.floor || "?"}</span>
+                </div>
+                <div className="staff-quals">
+                  {quals.slice(0, 2).map((q) => (
+                    <span key={q} className="qual-tag">{q}</span>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  function ActivityTicker({ alerts }) {
+    const events = useMemo(() => {
+      const all = [];
+      alerts.forEach((alert) => {
+        if (Array.isArray(alert.escalation_log)) {
+          alert.escalation_log.forEach((ev) => {
+            all.push({ at: ev.at, label: ev.label, room: alert.room, type: alert.type });
+          });
+        }
+      });
+      return all.sort((a, b) => new Date(b.at) - new Date(a.at)).slice(0, 12);
+    }, [alerts]);
+
+    function relTime(ts) {
+      const diff = Math.floor((Date.now() - new Date(ts)) / 1000);
+      if (diff < 60) return `${diff}s ago`;
+      if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+      return `${Math.floor(diff / 3600)}h ago`;
+    }
+
+    return (
+      <div className="widget-card widget-ticker">
+        <p className="widget-title">Platform Activity</p>
+        {events.length === 0 && (
+          <p className="widget-empty">No activity yet.</p>
+        )}
+        <div className="ticker-list">
+          {events.map((ev, i) => (
+            <div key={i} className="ticker-row">
+              <div className="ticker-line-col">
+                <div className={`ticker-dot type-dot-${ev.type}`} />
+                {i < events.length - 1 && <div className="ticker-connector" />}
+              </div>
+              <div className="ticker-body">
+                <span className="ticker-label">{ev.label}</span>
+                <span className="ticker-meta">Room {ev.room} · {relTime(ev.at)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app-layout">
@@ -609,44 +768,54 @@ function App() {
         {activeTab === "active" && (
           <>
             <StatsBar stats={stats} />
-            <section>
-              <div className="section-title-row">
-                <h2 className="section-title">Active Critical Alerts</h2>
-                <button
-                  type="button"
-                  className="mobile-inline-refresh"
-                  onClick={loadAlerts}
-                  title="Refresh alerts"
-                >
-                  <Icons.Refresh />
-                </button>
-              </div>
-              {loadingAlerts && (
-                <p className="muted-text">Loading live alerts...</p>
-              )}
-              {alertsError && <p className="error-text">{alertsError}</p>}
-
-              {!loadingAlerts && !alertsError && activeAlerts.length === 0 && (
-                <div className="empty-state">
-                  <svg className="empty-state-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
-                  <p>No active or responding incidents right now.</p>
+            <div className="dashboard-split-layout">
+              {/* ── LEFT: alert cards ── */}
+              <section className="dashboard-main-col">
+                <div className="section-title-row">
+                  <h2 className="section-title">Active Critical Alerts</h2>
+                  <button
+                    type="button"
+                    className="mobile-inline-refresh"
+                    onClick={loadAlerts}
+                    title="Refresh alerts"
+                  >
+                    <Icons.Refresh />
+                  </button>
                 </div>
-              )}
+                {loadingAlerts && (
+                  <p className="muted-text">Loading live alerts...</p>
+                )}
+                {alertsError && <p className="error-text">{alertsError}</p>}
 
-              <div className="alert-grid">
-                {activeAlerts.map((alert) => (
-                  <AlertCard
-                    key={alert.id}
-                    alert={alert}
-                    onAcknowledge={handleAcknowledge}
-                    isAcknowledgePending={pendingAckIds.has(alert.id)}
-                    isEntering={enteringAlertIds.has(alert.id)}
-                    currentUid={user?.uid}
-                    userRole={role}
-                  />
-                ))}
-              </div>
-            </section>
+                {!loadingAlerts && !alertsError && activeAlerts.length === 0 && (
+                  <div className="empty-state">
+                    <svg className="empty-state-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+                    <p>No active or responding incidents right now.</p>
+                  </div>
+                )}
+
+                <div className="alert-grid">
+                  {activeAlerts.map((alert) => (
+                    <AlertCard
+                      key={alert.id}
+                      alert={alert}
+                      onAcknowledge={handleAcknowledge}
+                      isAcknowledgePending={pendingAckIds.has(alert.id)}
+                      isEntering={enteringAlertIds.has(alert.id)}
+                      currentUid={user?.uid}
+                      userRole={role}
+                    />
+                  ))}
+                </div>
+              </section>
+
+              {/* ── RIGHT: telemetry console ── */}
+              <aside className="dashboard-side-col">
+                <DonutChart alerts={visibleAlerts} />
+                <StaffDirectory staffList={staffList} />
+                <ActivityTicker alerts={visibleAlerts} />
+              </aside>
+            </div>
           </>
         )}
 

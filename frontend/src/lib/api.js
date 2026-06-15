@@ -21,3 +21,7 @@ export function acknowledgeAlert(alertId, payload) {
 export function fetchRiskInsights() {
   return api.get("/api/risk-insights");
 }
+
+export function fetchStaff() {
+  return api.get("/api/staff");
+}

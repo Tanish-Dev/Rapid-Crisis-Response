@@ -103,6 +103,31 @@ async def register_device_route(payload: RegisterDeviceRequest):
     return saved
 
 
+@api.get("/api/staff")
+async def get_staff_route():
+    try:
+        db = _get_db()
+        docs = db.collection("staff_profiles").stream()
+        profiles = []
+        names = {
+            "A1p3YLYqOtMT4RLKqRTBZ6xWm1C2": "Darshan (Manager)",
+            "BM8OsLnNXEY9kifTVZBnd5n1Sro2": "Dr. Priya Sharma",
+            "ex92um0cJNfN9pgN94CGLipOVY32": "Sunita Mehta (General)",
+            "zO1zW35QYCQLJxeBxtc3h89SuiI3": "Raj Patil (Security)",
+            "bvoUFPtZs0UHhEePdwG5IoFyTOC2": "Admin",
+            "9xD5NwIxMjMz5LYwlcAkT0jhtQa2": "Googler Test"
+        }
+        for d in docs:
+            data = d.to_dict()
+            uid = d.id
+            if not data.get("name"):
+                data["name"] = names.get(uid, "Staff Member")
+            profiles.append({"uid": uid, **data})
+        return profiles
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
 async def notify_staff_for_incident(incident: dict) -> None:
     try:
         db = _get_db()
